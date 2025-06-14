@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profile Setup</title>
+    <link rel="stylesheet" href="styles/profile-setup.css">
+  </head>
+
+<body>
+  <div class="setup-container">
+    <h2>Setup Your Profile</h2>
+    <form id="profileForm">
+      <div class="input-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" required />
+      </div>
+      <div class="input-group">
+        <label for="userId">User ID</label>
+        <input type="text" id="userId" required />
+      </div>
+      <button type="submit">Save Profile</button>
+    </form>
+    <p id="error" class="error-msg"></p>
+  </div>
+
+  <script type="module">
+    import { auth, db } from './firebaseConfig.js';
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import { ref, set, get } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+
+    let currentUser = null;
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = "index.html";
+      } else {
+        currentUser = user;
+      }
+    });
+
+    const form = document.getElementById("profileForm");
+    const errorDisplay = document.getElementById("error");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value.trim();
+      const userId = document.getElementById("userId").value.trim();
+      errorDisplay.textContent = "";
+
+      try {
+        const usersRef = ref(db, 'users');
+        const snapshot = await get(usersRef);
+        let taken = false;
+        snapshot.forEach((child) => {
+          const data = child.val();
+          if (data.username === username || data.id === userId) taken = true;
+        });
+
+        if (taken) {
+          errorDisplay.textContent = "Username or ID already taken.";
+          return;
+        }
+
+        await set(ref(db, `users/${currentUser.uid}`), {
+          username: username,
+          id: userId,
+          createdAt: Date.now()
+        });
+
+        window.location.href = "home.html";
+
+      } catch (error) {
+        errorDisplay.textContent = "Error: " + error.message;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register</title>
+  <link rel="stylesheet" href="styles/register.css">
+</head>
+
+<body>
+  <div class="register-container">
+    <h2>Create Account</h2>
+    <form id="registerForm">
+      <div class="input-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" required />
+      </div>
+      <div class="input-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" required />
+      </div>
+      <div class="input-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" required />
+        <span id="togglePassword">👀</span>
+      </div>
+      <button type="submit">Register</button>
+    </form>
+    <p id="error" class="error-msg"></p>
+    <div class="link">
+      Already have an account? <a href="index.html">Login here</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from './firebaseConfig.js';
+    import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import { ref, set, get } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+
+    const togglePassword = document.getElementById("togglePassword");
+    const passwordInput = document.getElementById("password");
+    togglePassword.addEventListener("click", () => {
+      const type = passwordInput.type === "password" ? "text" : "password";
+      passwordInput.type = type;
+      togglePassword.textContent = type === "password" ? "👀" : "🫣";
+    });
+
+    const form = document.getElementById("registerForm");
+    const errorDisplay = document.getElementById("error");
+
+    function isValidMMUEmail(email) {
+      const mmuRegex = /^[a-zA-Z0-9._%+-]+@(student\.mmu\.edu\.my|mmu\.edu\.my)$/i;
+      return mmuRegex.test(email);
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = passwordInput.value.trim();
+      errorDisplay.textContent = "";
+
+      if (!isValidMMUEmail(email)) {
+        errorDisplay.textContent = "Please use a valid MMU email (@mmu.edu.my or @student.mmu.edu.my).";
+        return;
+      }
+
+      try {
+        const usersRef = ref(db, 'users');
+        const snapshot = await get(usersRef);
+        let taken = false;
+        snapshot.forEach((child) => {
+          const data = child.val();
+          if (data.username === username) taken = true;
+        });
+
+        if (taken) {
+          errorDisplay.textContent = "Username already taken.";
+          return;
+        }
+
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        await set(ref(db, `users/${user.uid}`), {
+          username: username,
+          email: email,
+          createdAt: Date.now()
+        });
+
+        window.location.href = "index.html";
+
+      } catch (error) {
+        if (error.code === "auth/email-already-in-use") {
+          errorDisplay.textContent = "Email already in use.";
+        } else if (error.code === "auth/weak-password") {
+          errorDisplay.textContent = "Password must be at least 6 characters.";
+        } else {
+          errorDisplay.textContent = "Error: " + error.message;
+        }
+      }
+    });
+  </script>
+</body>
+</html>

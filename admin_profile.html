@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>MMUsite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles/admin_profile.css">
+</head>
+
+<body>
+    <header>MMUsite Admin Dashboard</header>
+    <div class="container">
+        <div class="sidebar">
+            <p id="welcomeName"><strong>Welcome!</strong></p>
+            
+            <div class="homebar">
+                <button onclick="window.location.href='admin_home.html'"><img src="images/home.png" width="20"
+                        height="20" alt="Home" /> Home</button>
+            </div>
+            <div class="profilebar">
+                <button onclick="window.location.href='admin_profile.html'"><img src="images/profile.png" width="20"
+                        height="20" alt="Profile" /> Profile</button>
+            </div>
+            <div class="adminMasterBar">
+                <button onclick="window.location.href='admin_master.html'"><img src="images/admin.png" width="20"
+                        height="20" alt="Master" /> Master</button>
+            </div>
+            <div class="analyticsBar">
+                <button onclick="window.location.href='admin_analytics.html'"><img src="images/analytics.png" width="20"
+                        height="20" alt="Profile" /> Analytics</button>
+            </div>
+            
+
+            <div class="logoutbar">
+                <button id="logoutBtn"><img src="images/logout.png" width="20" height="20" alt="Logout" />
+                    Logout</button>
+            </div>
+        </div>
+
+        <div class="feed">
+
+            <p id="profileName"><b>Admin</b></p>
+            <div class="profile tab">
+                <button class="tab-btn" data-tab="Posts" onclick="openProfile('Posts')">Posts</button>
+                <button class="tab-btn" data-tab="Reposts" onclick="openProfile('Reposts')">Reposts</button>
+                <button class="tab-btn" data-tab="Likes" onclick="openProfile('Likes')">Likes</button>
+            </div>
+            <div id="Posts" class="icon" style="display:none;">
+                <h2>Posts</h2>
+            </div>
+            <div id="Reposts" class="icon" style="display:none;">
+                <h2>Reposts</h2>
+            </div>
+            <div id="Likes" class="icon" style="display:none;">
+                <h2>Likes</h2>
+            </div>
+        </div>
+    </div>
+
+    <!--for popup post-->
+    <div id="tweetModal">
+        <div class="modal-content">
+            <button class="close-btn"><img src="images/x.png" width="20" height="20" alt="Close Icon" /></button>
+            <h3>New Post</h3>
+            <textarea id="modalTweet" placeholder="Say something..." maxlength="500"></textarea>
+            <div id="the-count-modal">
+                <span id="currentModal">0</span>
+                <span id="maximumModal">/ 500</span>
+            </div>
+            <button id="modalPublishBtn" class="publish" disabled>Publish</button>
+        </div>
+    </div>
+
+    
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebaseConfig.js';
+        import { onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+        import { ref, onValue, push, update } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+
+        let currentUserUid = "";
+        let currentUsername = "";
+
+        const postsContainer = document.getElementById("Posts");
+        const repostsContainer = document.getElementById("Reposts");
+        const likesContainer = document.getElementById("Likes");
+
+        function formatTimestamp(ts) {
+            const date = new Date(ts);
+            return date.toLocaleString();
+        }
+
+        function createPostHTML(post) {
+            const postDiv = document.createElement("div");
+            postDiv.className = "tweet";
+            postDiv.innerHTML = `
+      <div class="author">@${post.username}</div>
+      <div>${post.text || ''}</div>
+      <div>Likes: ${post.likeCount || 0} | Reposts: ${post.repostCount || 0}</div>
+      <div class="timestamp">${formatTimestamp(post.createdAt)}</div>`;
+            return postDiv;
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) { window.location.href = "index.html"; return; }
+            currentUserUid = user.uid;
+            const userRef = ref(db, `users/${user.uid}`);
+            onValue(userRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const userProfile = snapshot.val();
+                    currentUsername = userProfile.username;
+                    document.getElementById("welcomeName").innerHTML = `<strong>Welcome, ${currentUsername}!</strong>`;
+                    document.getElementById("usernameHandle").textContent = `@${currentUsername}`;
+                    document.getElementById("profileName").innerHTML = `<b>@${currentUsername}</b><br>${currentUsername}`;
+
+                    // prefill settings modal
+                    usernameInput.value = userProfile.username;
+                    usernameBtn.disabled = true;
+                }
+            });
+            loadPosts();
+        });
+
+        function loadPosts() {
+            const postsRef = ref(db, 'posts');
+            onValue(postsRef, (snapshot) => {
+                const posts = snapshot.val() || {};
+                postsContainer.innerHTML = '';
+                repostsContainer.innerHTML = '';
+                likesContainer.innerHTML = '';
+                Object.entries(posts).forEach(([postId, post]) => {
+                    if (post.uid === currentUserUid) postsContainer.appendChild(createPostHTML(post));
+                    if (post.likes && post.likes[currentUserUid]) likesContainer.appendChild(createPostHTML(post));
+                    if (post.reposts && post.reposts[currentUserUid]) repostsContainer.appendChild(createPostHTML(post));
+                });
+            });
+        }
+
+        document.getElementById("logoutBtn").addEventListener("click", async () => {
+            await signOut(auth);
+            window.location.href = "index.html";
+        });
+
+        window.openProfile = function (tabName) {
+            document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+            document.querySelectorAll(".icon").forEach(tab => tab.style.display = "none");
+            document.getElementById(tabName).style.display = "block";
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add("active");
+        }
+
+        const modal = document.getElementById("tweetModal");
+        const modalInput = document.getElementById("modalTweet");
+        const modalBtn = document.getElementById("modalPublishBtn");
+
+        window.toggleModal = function (show) {
+            if (show) {
+                modal.classList.add("active");
+                modalInput.value = "";
+                modalBtn.disabled = true;
+                modalInput.focus();
+            } else { modal.classList.remove("active"); }
+        };
+
+        modalInput.addEventListener("input", () => {
+            modalBtn.disabled = modalInput.value.trim() === "";
+        });
+
+        const modalTextArea = document.getElementById("modalTweet");
+        const currentModal = document.getElementById("currentModal");
+        const maximumModal = document.getElementById("maximumModal");
+        maximumModal.textContent = "/ 500";
+        modalTextArea.addEventListener("input", updateModalCount);
+        function updateModalCount() {
+            currentModal.textContent = modalTextArea.value.length;
+        }
+
+        updateModalCount();
+
+
+
+        modalBtn.addEventListener("click", async () => {
+            const text = modalInput.value.trim();
+            if (!text || !currentUserUid || !currentUsername) return;
+            const postRef = ref(db, 'posts');
+            await push(postRef, {
+                uid: currentUserUid,
+                username: currentUsername,
+                text: text,
+                createdAt: Date.now(),
+                likeCount: 0,
+                repostCount: 0
+            });
+            modalInput.value = "";
+            modalBtn.disabled = true;
+            toggleModal(false);
+        });
+
+        document.querySelector("#tweetModal .close-btn").addEventListener("click", () => {
+            toggleModal(false);
+        });
+
+        openProfile('Posts');
+
+        
+
+    </script>
+
+
+    <!-- Chatbase Chatbot -->
+    <script src="https://www.chatbase.co/embed.min.js" chatbotId="PphMzwfUNpnHLm_knq8vg" defer>
+    </script>
+</body>
+
+</html>

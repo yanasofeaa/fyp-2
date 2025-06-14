@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>MMUsite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles/admin_master.css">
+</head>
+
+<body>
+    <header>MMUsite Admin Dashboard</header>
+    <div class="container">
+        <div class="sidebar">
+            <p id="welcomeName"><strong>Admin Dashboard</strong></p>
+            <div class="homebar">
+                <button onclick="window.location.href='admin_home.html'"><img src="images/home.png" width="20"
+                        height="20" alt="Home" /> Home</button>
+            </div>
+            <div class="profilebar">
+                <button onclick="window.location.href='admin_profile.html'"><img src="images/profile.png" width="20"
+                        height="20" alt="Profile" /> Profile</button>
+            </div>
+            <div class="adminMasterBar">
+                <button onclick="window.location.href='admin_master.html'"><img src="images/admin.png" width="20"
+                        height="20" alt="Master" /> Master</button>
+            </div>
+            <div class="analyticsBar">
+                <button onclick="window.location.href='admin_analytics.html'"><img src="images/analytics.png" width="20"
+                        height="20" alt="Profile" /> Analytics</button>
+            </div>
+
+            <div class="logoutbar">
+                <button id="logoutBtn"><img src="images/logout.png" width="20" height="20" alt="Logout" />
+                    Logout</button>
+            </div>
+        </div>
+
+
+
+        <div class="feed">
+            <h1>User Management</h1>
+
+
+
+            <!-- USER MANAGEMENT PANEL -->
+            <div class="card">
+                <h2>Add New User</h2>
+                <input type="text" id="newUsername" placeholder="Enter username">
+                <button id="addUserBtn">Add User</button>
+            </div>
+
+            <div class="card">
+                <h2>Existing Users</h2>
+                <table id="userTable">
+                    <thead>
+                        <tr>
+                            <th>UID</th>
+                            <th>Username</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+import { auth, db } from './firebaseConfig.js';
+import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+import { ref, onValue, set, update, remove, get } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+
+// ---------------- AUTH ----------------
+onAuthStateChanged(auth, user => {
+    if (!user) { window.location.href = "index.html"; }
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+    await signOut(auth);
+    window.location.href = "index.html";
+});
+
+// ---------------- USER MANAGEMENT ----------------
+const usersRef = ref(db, 'users');
+onValue(usersRef, snapshot => {
+    const data = snapshot.val() || {};
+    renderUserTable(data);
+});
+
+function renderUserTable(users) {
+    const tbody = document.querySelector("#userTable tbody");
+    tbody.innerHTML = "";
+    Object.entries(users).forEach(([uid, user]) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${uid}</td>
+          <td><input type="text" value="${user.username}" id="input-${uid}" data-original="${user.username}"></td>
+          <td>
+            <button onclick="updateUser('${uid}')">Save</button>
+            <button onclick="deleteUser('${uid}')">Delete</button>
+          </td>`;
+        tbody.appendChild(row);
+    });
+}
+
+document.getElementById("addUserBtn").addEventListener("click", async () => {
+    const username = document.getElementById("newUsername").value.trim();
+    if (!username) return alert("Enter username");
+
+    const exists = await checkUsernameExists(username);
+    if (exists) {
+        alert("Username already exists. Please choose another.");
+        return;
+    }
+
+    const newUid = generateUID();
+    await set(ref(db, `users/${newUid}`), { username });
+    document.getElementById("newUsername").value = "";
+});
+
+function generateUID() {
+    return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+}
+
+window.updateUser = async function (uid) {
+    const inputEl = document.getElementById(`input-${uid}`);
+    const newUsername = inputEl.value.trim();
+    const originalUsername = inputEl.dataset.original;
+
+    if (!newUsername) {
+        alert("Username cannot be empty");
+        inputEl.value = originalUsername;
+        return;
+    }
+
+    const exists = await checkUsernameExists(newUsername, uid);
+    if (exists) {
+        alert("Username already exists. Please choose another.");
+        inputEl.value = originalUsername;
+        return;
+    }
+
+    await update(ref(db, `users/${uid}`), { username: newUsername });
+    inputEl.dataset.original = newUsername;  // update stored original after successful update
+}
+
+window.deleteUser = async function (uid) {
+    if (confirm("Are you sure you want to delete this user?")) {
+        await remove(ref(db, `users/${uid}`));
+    }
+}
+
+// ------ username uniqueness checking ------
+async function checkUsernameExists(username, currentUid = null) {
+    const snapshot = await get(usersRef);
+    if (!snapshot.exists()) return false;
+
+    let exists = false;
+    snapshot.forEach(childSnap => {
+        const userData = childSnap.val();
+        if (userData.username &&
+            userData.username.toLowerCase() === username.toLowerCase() &&
+            childSnap.key !== currentUid) {
+            exists = true;
+        }
+    });
+
+    return exists;
+}
+</script>
+
+
+</body>
+
+</html>

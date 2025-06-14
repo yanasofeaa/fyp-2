@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>MMUsite </title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles/admin_analytics.css">
+</head>
+
+<body>
+    <header>MMUsite Admin Dashboard</header>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <p id="welcomeName"><strong>Admin Dashboard</strong></p>
+            <div class="homebar">
+                <button onclick="window.location.href='admin_home.html'"><img src="images/home.png" width="20" height="20"
+                        alt="Home" /> Home</button>
+            </div>
+            <div class="profilebar">
+                <button onclick="window.location.href='admin_profile.html'"><img src="images/profile.png" width="20"
+                        height="20" alt="Profile" /> Profile</button>
+            </div>
+            <div class="adminMasterBar">
+                <button onclick="window.location.href='admin_master.html'"><img src="images/admin.png" width="20"
+                        height="20" alt="Master" /> Master</button>
+            </div>
+            <div class="analyticsBar">
+                <button onclick="window.location.href='admin_analytics.html'"><img src="images/analytics.png" width="20"
+                        height="20" alt="Analytics" /> Analytics</button>
+            </div>
+            
+            <div class="logoutbar">
+                <button id="logoutBtn"><img src="images/logout.png" width="20" height="20" alt="Logout" />
+                    Logout</button>
+            </div>
+        </div>
+        <!-- Analytics Feed -->
+        <div class="feed">
+            <h1>Advanced Analytics</h1>
+
+            <div class="card">
+                <h2>Post Search</h2>
+                <p>Total Posts: <span id="totalPostsSearch">Loading...</span></p>
+                <input type="text" id="searchWord" placeholder="Search keyword in posts...">
+                <p id="searchCount">Type to search...</p>
+            </div>
+
+            <div class="card">
+                <h2>Summary Statistics</h2>
+                <p>Total Posts: <b id="totalPostsAnalytics">0</b></p>
+                <p>Total Likes: <b id="totalLikes">0</b></p>
+                <p>Total Reposts: <b id="totalReposts">0</b></p>
+            </div>
+
+            <div class="card">
+                <h2>Top 10 Keywords</h2>
+                <pre id="keywordStats">Loading...</pre>
+            </div>
+
+            <div class="card">
+                <h2>Activity Chart (Posts per Day)</h2>
+                <pre id="activityChart">Loading...</pre>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebaseConfig.js';
+        import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+        import { ref, onValue } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+
+        let postsData = {};
+
+        // Auth check
+        onAuthStateChanged(auth, user => {
+            if (!user) { window.location.href = "index.html"; }
+        });
+
+        document.getElementById("logoutBtn").addEventListener("click", async () => {
+            await signOut(auth);
+            window.location.href = "index.html";
+        });
+
+        // Unified listener
+        const postsRef = ref(db, 'posts');
+        onValue(postsRef, snapshot => {
+            postsData = snapshot.val() || {};
+            const totalPosts = Object.keys(postsData).length;
+
+            document.getElementById("totalPostsSearch").textContent = totalPosts;
+            document.getElementById("totalPostsAnalytics").textContent = totalPosts;
+
+            let totalLikes = 0, totalReposts = 0;
+            const wordFreq = {};
+            const activityMap = {};
+
+            Object.values(postsData).forEach(post => {
+                totalLikes += post.likeCount || 0;
+                totalReposts += post.repostCount || 0;
+
+                if (post.text) {
+                    const words = post.text.toLowerCase().match(/\b\w+\b/g);
+                    if (words) {
+                        words.forEach(word => {
+                            wordFreq[word] = (wordFreq[word] || 0) + 1;
+                        });
+                    }
+                }
+
+                const dateStr = new Date(post.createdAt).toLocaleDateString();
+                activityMap[dateStr] = (activityMap[dateStr] || 0) + 1;
+            });
+
+            document.getElementById("totalLikes").textContent = totalLikes;
+            document.getElementById("totalReposts").textContent = totalReposts;
+
+            updateKeywords(wordFreq);
+            updateActivity(activityMap);
+            updateSearchCount();
+        });
+
+        document.getElementById("searchWord").addEventListener("input", updateSearchCount);
+
+        function updateSearchCount() {
+            const keyword = document.getElementById("searchWord").value.trim().toLowerCase();
+            if (!keyword) {
+                document.getElementById("searchCount").textContent = "Type to search...";
+                return;
+            }
+            let count = 0;
+            Object.values(postsData).forEach(post => {
+                if (post.text && post.text.toLowerCase().includes(keyword)) count++;
+            });
+            document.getElementById("searchCount").textContent = `Found ${count} post(s) containing "${keyword}"`;
+        }
+
+        function updateKeywords(freq) {
+            const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            const output = sorted.map(([word, count]) => `${word}: ${count}`).join('\n');
+            document.getElementById("keywordStats").textContent = output || "No keywords found.";
+        }
+
+        function updateActivity(map) {
+            const sortedDates = Object.keys(map).sort((a, b) => new Date(a) - new Date(b));
+            const output = sortedDates.map(date => `${date}: ${map[date]} post(s)`).join('\n');
+            document.getElementById("activityChart").textContent = output || "No activity data.";
+        }
+    </script>
+
+</body>
+
+</html>

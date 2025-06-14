@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login</title>
+  <link rel="stylesheet" href="styles/index.css">
+</head>
+
+
+<body>
+  <div class="login-container">
+    <h2>Login</h2>
+    <form id="loginForm">
+      <div class="input-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" required />
+      </div>
+      <div class="input-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" required />
+        <span id="togglePassword">👀</span>
+      </div>
+      <button type="submit">Login</button>
+    </form>
+    <p id="error" class="error-msg"></p>
+    <div class="link">
+      Don't have an account? <a href="register.html">Register here</a>
+    </div>
+  </div>
+
+
+  <script type="module">
+    import { auth, db } from './firebaseConfig.js';
+    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+    import { ref, get } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+
+    const togglePassword = document.getElementById("togglePassword");
+    const passwordInput = document.getElementById("password");
+    togglePassword.addEventListener("click", () => {
+      const type = passwordInput.type === "password" ? "text" : "password";
+      passwordInput.type = type;
+      togglePassword.textContent = type === "password" ? "👀" : "🫣";
+    });
+
+    const form = document.getElementById("loginForm");
+    const errorDisplay = document.getElementById("error");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const password = passwordInput.value.trim();
+
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Admin redirect condition
+        if (email.toLowerCase() === "mmusite123@gmail.com") {
+          window.location.href = "admin_home.html";
+          return;
+        }
+
+        const userRef = ref(db, `users/${user.uid}`);
+        const snap = await get(userRef);
+
+        if (!snap.exists()) {
+          window.location.href = "profile-setup.html";
+        } else {
+          window.location.href = "home.html";
+        }
+
+      } catch (error) {
+        if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password") {
+          errorDisplay.textContent = "Invalid email or password.";
+        } else {
+          errorDisplay.textContent = "Error: " + error.message;
+        }
+      }
+    });
+  </script>
+
+</body>
+
+</html>

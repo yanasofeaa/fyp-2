@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MMUsite</title>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles/admin_home.css">
+    
+</head>
+
+<body>
+
+    <header>MMUsite Admin Dashboard</header>
+
+    <div class="container">
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <p id="welcomeName"><strong>Welcome!</strong></p>
+
+            <div class="homebar">
+                <button onclick="window.location.href='admin_home.html'"><img src="images/home.png" width="20"
+                        height="20" alt="Home" /> Home</button>
+            </div>
+
+            <div class="profilebar">
+                <button onclick="window.location.href='admin_profile.html'"><img src="images/profile.png" width="20"
+                        height="20" alt="Profile" /> Profile</button>
+            </div>
+
+            <div class="adminMasterBar">
+                <button onclick="window.location.href='admin_master.html'"><img src="images/admin.png" width="20"
+                        height="20" alt="Master" /> Master</button>
+            </div>
+
+            <div class="analyticsBar">
+                <button onclick="window.location.href='admin_analytics.html'"><img src="images/analytics.png" width="20"
+                        height="20" alt="Analytics" /> Analytics</button>
+            </div>
+
+            <div class="postbar">
+                <button onclick="toggleModal(true)"><img src="images/post.png" width="20" height="20" alt="Post Icon" />
+                    Post</button>
+            </div>
+
+            <button id="settingsBtn">
+                <img src="images/settings.png" width="20" height="20" alt="Settings" />
+                Settings
+            </button>
+
+            <div class="logoutbar">
+                <button id="logoutBtn"><img src="images/logout.png" width="20" height="20" alt="Logout" />
+                    Logout</button>
+            </div>
+        </div>
+
+        <!-- Feed -->
+        <div class="feed">
+            <div class="tweet-box">
+                <p>What's on your mind?</p>
+                <textarea id="postText" placeholder="Say something..." maxlength="500"></textarea>
+                <div id="the-count">
+                    <span id="currentMain">0</span>
+                    <span id="maximumMain">/ 500</span>
+                </div>
+                <button id="postBtn" disabled>Post</button>
+
+
+            </div>
+
+            <div id="output"></div>
+        </div>
+
+        <!-- Rightbar -->
+        <div class="rightbar">
+            <div class="search-container">
+                <input type="text" placeholder="Search..." id="searchInput" onkeypress="handleSearch(event)" />
+                <script>
+                    function handleSearch(e) {
+                        if (e.key === "Enter") {
+                            const searchTerm = document.getElementById("searchInput").value.trim();
+
+                        }
+                    }
+                </script>
+                <p>
+                <p><strong>Trends for you</strong></p>
+                <ul id="trendsList">
+                    <li>#MMUEvents</li>
+                    <li>#MMUCarpool</li>
+                    <li>#MMUUpdates</li>
+                </ul>
+
+
+            </div>
+        </div>
+
+
+    </div>
+    <div id="tweetModal">
+        <div class="modal-content">
+            <button class="close-btn">
+                <img src="images/x.png" width="20" height="20" alt="Close Icon" />
+            </button>
+            <h3>New Post</h3>
+            <textarea id="modalTweet" placeholder="Say something..." maxlength="500"></textarea>
+            <div id="the-count-modal">
+                <span id="currentModal">0</span>
+                <span id="maximumModal">/ 500</span>
+            </div>
+
+            <button id="modalPublishBtn" class="publish" disabled>Publish</button>
+        </div>
+    </div>
+
+    <!--for popup settings-->
+    <div id="settingsModal">
+        <div class="settings-content">
+            <button class="close-btn"><img src="images/x.png" width="20" height="20" alt="Close Icon" /></button>
+            <h3>
+                <center>settings</center>
+            </h3>
+            <h4>username: </h4><textarea id="modalusername" placeholder="Edit Username..."></textarea>
+            <button id="modalUsernameBtn" class="username_edit" disabled>Edit</button>
+            <h4>password: </h4>
+            <textarea id="modalPassword" placeholder="Edit Password..."></textarea>
+            <button id="modalPasswordBtn" class="password_edit" disabled>Edit</button>
+
+        </div>
+    </div>
+
+    </div>
+    <script type="module">
+        import { auth, db } from './firebaseConfig.js';
+        import { onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+        import { ref, get, onValue, query, orderByChild, limitToLast, push, runTransaction, remove, update } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+
+        let currentUser = null;
+        let currentUsername = "";
+
+        //  Declare settings inputs early to avoid ReferenceError
+        const usernameInput = document.getElementById("modalusername");
+        const usernameBtn = document.getElementById("modalUsernameBtn");
+        const passwordInput = document.getElementById("modalPassword");
+        const passwordBtn = document.getElementById("modalPasswordBtn");
+
+        //  Toggle for settings modal
+        function toggleSettings(show) {
+            const settingsModal = document.getElementById("settingsModal");
+            if (show) {
+                usernameInput.value = currentUsername;
+                usernameBtn.disabled = true;
+                settingsModal.classList.add("active");
+            } else {
+                settingsModal.classList.remove("active");
+            }
+        }
+
+        // Auth check
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = "index.html";
+                return;
+            }
+            currentUser = user;
+            const userSnap = await get(ref(db, `users/${user.uid}`));
+            if (userSnap.exists()) {
+                const profile = userSnap.val();
+                currentUsername = profile.username;
+                document.getElementById("welcomeName").innerHTML = `<strong>Welcome, ${currentUsername}!</strong>`;
+                document.getElementById("usernameHandle").textContent = `@${currentUsername}`;
+            } else {
+                window.location.href = "profile-setup.html";
+            }
+        });
+
+        //  Logout
+        document.getElementById("logoutBtn").addEventListener("click", async () => {
+            await signOut(auth);
+            window.location.href = "index.html";
+        });
+
+        //  Main post box
+        const postText = document.getElementById("postText");
+        const postBtn = document.getElementById("postBtn");
+        postText.addEventListener("input", () => {
+            postBtn.disabled = postText.value.trim() === "";
+        });
+        postBtn.addEventListener("click", async () => {
+            await createPost(postText.value.trim());
+            postText.value = "";
+            postBtn.disabled = true;
+            updateMainCount();
+        });
+
+        //  Modal post box
+        const modal = document.getElementById("tweetModal");
+        const modalInput = document.getElementById("modalTweet");
+        const modalBtn = document.getElementById("modalPublishBtn");
+        const postbar = document.querySelector(".postbar button");
+
+        postbar.addEventListener("click", () => { toggleModal(true); });
+
+        modalInput.addEventListener("input", () => {
+            modalBtn.disabled = modalInput.value.trim() === "";
+        });
+        modalBtn.addEventListener("click", async () => {
+            await createPost(modalInput.value.trim());
+            modalInput.value = "";
+            modalBtn.disabled = true;
+            toggleModal(false);
+            updateModalCount();
+        });
+
+        function toggleModal(show) {
+            if (show) {
+                modal.classList.add("active");
+                modalInput.value = "";
+                modalBtn.disabled = true;
+                updateModalCount();
+                modalInput.focus();
+            } else {
+                modal.classList.remove("active");
+            }
+        }
+
+        async function createPost(text) {
+            if (!text || !currentUser) return;
+            const postRef = ref(db, 'posts');
+            await push(postRef, {
+                uid: currentUser.uid,
+                username: currentUsername,
+                text: text,
+                createdAt: Date.now(),
+                likeCount: 0,
+                repostCount: 0
+            });
+        }
+
+        //  Load posts
+        const feedDiv = document.getElementById("output");
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        const postsQuery = query(ref(db, "posts"), orderByChild("createdAt"), limitToLast(50));
+        onValue(postsQuery, snapshot => {
+            feedDiv.innerHTML = "";
+            const posts = [];
+            snapshot.forEach(childSnap => {
+                posts.push({ id: childSnap.key, ...childSnap.val() });
+            });
+            posts.sort((a, b) => b.createdAt - a.createdAt);
+            posts.forEach(post => renderPost(post));
+        });
+
+        function renderPost(post) {
+            const div = document.createElement('div');
+            div.className = "tweet";
+            const date = new Date(post.createdAt);
+            div.innerHTML = `
+    <div class="post-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:bold; color:#0052cc;">@${escapeHtml(post.username)}</div>
+        ${post.uid === currentUser.uid ? `
+        <div class="dropdown_edit" style="position: relative;">
+          <button class="dropEditbtn">More ▼</button>
+          <div class="edit-content" style="display:none; position:absolute; background:white; border:1px solid #ccc; border-radius:8px; padding:10px; right:0;">
+            <button class="editBtn">✏️ Edit</button><br>
+            <button class="deleteBtn">🗑️ Delete</button>
+          </div>
+        </div>` : ""}
+    </div>
+    <div style="margin: 10px 0;">${escapeHtml(post.text)}</div>
+    <div class="timestamp">${date.toLocaleString()}</div>
+    <div class="tweet-buttons">
+      <button class="likeBtn">❤️ ${post.likeCount || 0}</button>
+      <button class="repostBtn">🔁 ${post.repostCount || 0}</button>
+      <button class="commentToggleBtn">💬</button>
+    </div>
+    <div class="comments" style="display:none; margin-top:10px;">
+      <div class="commentList"></div>
+      <input type="text" placeholder="Write comment..." class="commentInput" style="width: 90%;">
+      <button class="submitCommentBtn">Submit</button>
+    </div>`;
+
+            if (post.uid === currentUser.uid) {
+                const editDelete = div.querySelector(".dropdown_edit");
+                const dropdownBtn = editDelete.querySelector(".dropEditbtn");
+                const dropdownMenu = editDelete.querySelector(".edit-content");
+
+                dropdownBtn.addEventListener("click", () => {
+                    dropdownMenu.style.display = dropdownMenu.style.display === "none" ? "block" : "none";
+                });
+
+                editDelete.querySelector(".editBtn").addEventListener("click", () => {
+                    const newText = prompt("Edit your post:", post.text);
+                    if (newText) {
+                        runTransaction(ref(db, `posts/${post.id}`), (postSnap) => {
+                            if (postSnap) postSnap.text = newText;
+                            return postSnap;
+                        });
+                    }
+                    dropdownMenu.style.display = "none";
+                });
+
+                editDelete.querySelector(".deleteBtn").addEventListener("click", () => {
+                    if (confirm("Are you sure to delete this post?")) {
+                        remove(ref(db, `posts/${post.id}`));
+                    }
+                    dropdownMenu.style.display = "none";
+                });
+            }
+
+            div.querySelector(".likeBtn").addEventListener("click", () => {
+                const likeUserRef = ref(db, `posts/${post.id}/likes/${currentUser.uid}`);
+                get(likeUserRef).then(snapshot => {
+                    const liked = snapshot.exists();
+                    runTransaction(ref(db, `posts/${post.id}`), (postSnap) => {
+                        if (!postSnap) return;
+                        if (liked) {
+                            if (postSnap.likeCount > 0) postSnap.likeCount--;
+                            if (postSnap.likes) delete postSnap.likes[currentUser.uid];
+                        } else {
+                            postSnap.likeCount = (postSnap.likeCount || 0) + 1;
+                            postSnap.likes = postSnap.likes || {};
+                            postSnap.likes[currentUser.uid] = true;
+                        }
+                        return postSnap;
+                    });
+                });
+            });
+
+            div.querySelector(".repostBtn").addEventListener("click", () => {
+                const repostUserRef = ref(db, `posts/${post.id}/reposts/${currentUser.uid}`);
+                get(repostUserRef).then(snapshot => {
+                    const reposted = snapshot.exists();
+                    runTransaction(ref(db, `posts/${post.id}`), (postSnap) => {
+                        if (!postSnap) return;
+                        if (reposted) {
+                            if (postSnap.repostCount > 0) postSnap.repostCount--;
+                            if (postSnap.reposts) delete postSnap.reposts[currentUser.uid];
+                        } else {
+                            postSnap.repostCount = (postSnap.repostCount || 0) + 1;
+                            postSnap.reposts = postSnap.reposts || {};
+                            postSnap.reposts[currentUser.uid] = true;
+                        }
+                        return postSnap;
+                    });
+                });
+            });
+
+            div.querySelector(".commentToggleBtn").addEventListener("click", () => {
+                const commentsSection = div.querySelector(".comments");
+                commentsSection.style.display = commentsSection.style.display === "none" ? "block" : "none";
+            });
+
+            const submitCommentBtn = div.querySelector(".submitCommentBtn");
+            const commentInput = div.querySelector(".commentInput");
+            const commentList = div.querySelector(".commentList");
+
+            submitCommentBtn.addEventListener("click", async () => {
+                const commentText = commentInput.value.trim();
+                if (commentText === "") return;
+                await push(ref(db, `posts/${post.id}/comments`), {
+                    uid: currentUser.uid,
+                    text: commentText,
+                    createdAt: Date.now()
+                });
+                commentInput.value = "";
+            });
+
+            const commentsRef = ref(db, `posts/${post.id}/comments`);
+            onValue(commentsRef, (snap) => {
+                commentList.innerHTML = "";
+                snap.forEach(c => {
+                    const data = c.val();
+                    const cDiv = document.createElement("div");
+                    cDiv.innerHTML = `💬 ${escapeHtml(data.text)} <small>${new Date(data.createdAt).toLocaleString()}</small>`;
+                    commentList.appendChild(cDiv);
+                });
+            });
+
+            feedDiv.appendChild(div);
+        }
+
+        // Character counters
+        const mainTextArea = document.getElementById("postText");
+        const currentMain = document.getElementById("currentMain");
+        const maximumMain = document.getElementById("maximumMain");
+        maximumMain.textContent = "/ 500";
+        mainTextArea.addEventListener("input", updateMainCount);
+        function updateMainCount() {
+            currentMain.textContent = mainTextArea.value.length;
+        }
+        const modalTextArea = document.getElementById("modalTweet");
+        const currentModal = document.getElementById("currentModal");
+        const maximumModal = document.getElementById("maximumModal");
+        maximumModal.textContent = "/ 500";
+        modalTextArea.addEventListener("input", updateModalCount);
+        function updateModalCount() {
+            currentModal.textContent = modalTextArea.value.length;
+        }
+        updateMainCount();
+        updateModalCount();
+
+        // Username update
+        usernameInput.addEventListener("input", () => {
+            usernameBtn.disabled = usernameInput.value.trim() === "";
+        });
+        usernameBtn.addEventListener("click", async () => {
+            const newUsername = usernameInput.value.trim();
+            if (!newUsername || !currentUser) return;
+
+            // Check uniqueness
+            const usersRef = ref(db, 'users');
+            const snapshot = await get(usersRef);
+            let usernameExists = false;
+
+            snapshot.forEach(childSnap => {
+                const userData = childSnap.val();
+                if (userData.username === newUsername && childSnap.key !== currentUser.uid) {
+                    usernameExists = true;
+                }
+            });
+
+            if (usernameExists) {
+                alert("Username already taken. Please choose a different one.");
+                return;
+            }
+
+            // Proceed with update if unique
+            const userRef = ref(db, `users/${currentUser.uid}`);
+            await update(userRef, { username: newUsername });
+            currentUsername = newUsername;
+            document.getElementById("welcomeName").innerHTML = `<strong>Welcome, ${currentUsername}!</strong>`;
+            document.getElementById("usernameHandle").textContent = `@${currentUsername}`;
+            usernameInput.value = "";
+            usernameBtn.disabled = true;
+            toggleSettings(false);
+            alert("Username updated successfully.");
+        });
+
+
+        // Password update
+        passwordInput.addEventListener("input", () => {
+            passwordBtn.disabled = passwordInput.value.trim().length < 6;
+        });
+        passwordBtn.addEventListener("click", async () => {
+            const newPassword = passwordInput.value.trim();
+            if (!newPassword || !auth.currentUser) return;
+            try {
+                await updatePassword(auth.currentUser, newPassword);
+                alert("Password updated successfully.");
+                passwordInput.value = "";
+                passwordBtn.disabled = true;
+                toggleSettings(false);
+            } catch (error) {
+                console.error("Error updating password:", error);
+                alert("Failed to update password. Please re-login.");
+            }
+        });
+
+        //  Close buttons for modals
+        document.querySelector("#tweetModal .close-btn").addEventListener("click", () => toggleModal(false));
+        document.querySelector("#settingsModal .close-btn").addEventListener("click", () => toggleSettings(false));
+
+        document.getElementById("settingsBtn").addEventListener("click", () => {
+            toggleSettings(true);
+        });
+
+        // Search Functionality
+        const searchInput = document.getElementById("searchInput");
+
+        searchInput.addEventListener("input", () => {
+            const filter = searchInput.value.toLowerCase();
+            const allPosts = feedDiv.querySelectorAll(".tweet");
+
+            allPosts.forEach(post => {
+                const postText = post.textContent.toLowerCase();
+                if (postText.includes(filter)) {
+                    post.style.display = "";
+                } else {
+                    post.style.display = "none";
+                }
+            });
+        });
+
+        function performSearch(keyword) {
+            const allPosts = document.querySelectorAll(".tweet");
+
+            allPosts.forEach(post => {
+                const postText = post.textContent.toLowerCase();
+                if (postText.includes(keyword.toLowerCase())) {
+                    post.style.display = "";
+                } else {
+                    post.style.display = "none";
+                }
+            });
+
+            document.getElementById("searchInput").value = "#" + keyword;
+        }
+        // Automatically bind click event to all trends
+        document.querySelectorAll("#trendsList li").forEach(item => {
+            item.addEventListener("click", () => {
+                const keyword = item.textContent.replace("#", "").trim();
+                performSearch(keyword);
+            });
+        });
+    </script>
+
+
+    <!-- Chatbase Chatbot -->
+    <script src="https://www.chatbase.co/embed.min.js" chatbotId="PphMzwfUNpnHLm_knq8vg" defer>
+    </script>
+
+
+</body>
+
+</html>
