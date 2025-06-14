@@ -82,6 +82,8 @@
             flex-direction: column;
             gap: 2rem;
             align-items: center;
+            overflow-y: auto;
+            max-height: 100vh;
         }
 
         .card {
