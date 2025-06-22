@@ -38,6 +38,13 @@
                     Post</button>
             </div>
 
+            <div class="notificationsbar">
+                <button id="notificationsBtn">
+                    <img src="images/notifications.png" width="20" height="20" alt="Notifications" />
+                    Notifications
+                </button>
+            </div>
+
             <button id="settingsBtn">
                 <img src="images/settings.png" width="20" height="20" alt="Settings" />
                 Settings
@@ -125,8 +132,21 @@
         </div>
     </div>
 
+    <!--for popup notifications-->
+    <div id="notificationsModal">
+        <div class="notifications-content">
+            <button class="close-btn"><img src="images/x.png" width="20" height="20" alt="Close Icon" /></button>
+            <h3>
+                <center>Notifications</center>
+            </h3>
+            <ul id="notificationsList"></ul>
+
+            <button id="clearNotificationsBtn"> Clear All Notifications</button>
+
+        </div>
     </div>
-    <script type="module" src="scripts/home.js"></script>
+
+    </div>
     <script type="module">
         import { auth, db } from './firebaseConfig.js';
         import { onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
@@ -323,6 +343,7 @@
                             postSnap.likeCount = (postSnap.likeCount || 0) + 1;
                             postSnap.likes = postSnap.likes || {};
                             postSnap.likes[currentUser.uid] = true;
+                            sendNotification(post.uid, "liked", currentUsername, post.id);
                         }
                         return postSnap;
                     });
@@ -342,6 +363,7 @@
                             postSnap.repostCount = (postSnap.repostCount || 0) + 1;
                             postSnap.reposts = postSnap.reposts || {};
                             postSnap.reposts[currentUser.uid] = true;
+                            sendNotification(post.uid, "reposted", currentUsername, post.id);
                         }
                         return postSnap;
                     });
@@ -362,10 +384,12 @@
                 if (commentText === "") return;
                 await push(ref(db, `posts/${post.id}/comments`), {
                     uid: currentUser.uid,
+                    username: currentUsername,
                     text: commentText,
                     createdAt: Date.now()
                 });
                 commentInput.value = "";
+                sendNotification(post.uid, "commented", currentUsername, post.id, commentText);
             });
 
             const commentsRef = ref(db, `posts/${post.id}/comments`);
@@ -374,7 +398,7 @@
                 snap.forEach(c => {
                     const data = c.val();
                     const cDiv = document.createElement("div");
-                    cDiv.innerHTML = `💬 ${escapeHtml(data.text)} <small>${new Date(data.createdAt).toLocaleString()}</small>`;
+                    cDiv.innerHTML = `💬 <strong>@${escapeHtml(data.username)}</strong>: ${escapeHtml(data.text)} <small>${new Date(data.createdAt).toLocaleString()}</small>`;
                     commentList.appendChild(cDiv);
                 });
             });
@@ -505,6 +529,79 @@
                 performSearch(keyword);
             });
         });
+
+        // --- Notification Modal Elements
+        const notificationsBtn = document.getElementById("notificationsBtn");
+        const notificationsModal = document.getElementById("notificationsModal");
+        const notificationsList = document.getElementById("notificationsList");
+
+        // Open notifications modal
+        notificationsBtn.addEventListener("click", () => {
+            notificationsModal.classList.add("active");
+        });
+
+        // Close modal
+        document.querySelector("#notificationsModal .close-btn").addEventListener("click", () => {
+            notificationsModal.classList.remove("active");
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = "index.html";
+                return;
+            }
+            currentUser = user;
+            const userSnap = await get(ref(db, `users/${user.uid}`));
+            if (userSnap.exists()) {
+                const profile = userSnap.val();
+                currentUsername = profile.username;
+                document.getElementById("welcomeName").innerHTML = `<strong>Welcome, ${currentUsername}!</strong>`;
+                document.getElementById("usernameHandle").textContent = `@${currentUsername}`;
+
+                // NOW SAFE TO LOAD NOTIFICATIONS:
+                const notifRef = ref(db, `notifications/${currentUser.uid}`);
+                onValue(notifRef, snapshot => {
+                    notificationsList.innerHTML = "";
+                    const notifs = snapshot.val() || {};
+                    Object.entries(notifs).reverse().forEach(([key, notif]) => {
+                        const item = document.createElement("li");
+                        const date = new Date(notif.timestamp).toLocaleString();
+                        let text = `${notif.fromUser} ${notif.type} your post`;
+                        if (notif.type === "commented") text += `: "${notif.text}"`;
+                        item.innerHTML = `${text}<br><small>${date}</small>`;
+                        notificationsList.appendChild(item);
+                    });
+                });
+            } else {
+                window.location.href = "profile-setup.html";
+            }
+        });
+
+        // --- Function to send notification
+        function sendNotification(targetUserUid, type, fromUsername, postId, text = "") {
+            const notifRef = ref(db, `notifications/${targetUserUid}`);
+            push(notifRef, {
+                type,
+                fromUser: fromUsername,
+                postId,
+                text,
+                timestamp: Date.now(),
+                read: false
+            });
+        }
+
+        const clearNotificationsBtn = document.getElementById("clearNotificationsBtn");
+
+        clearNotificationsBtn.addEventListener("click", async () => {
+            if (!currentUser) return;
+            if (!confirm("Are you sure you want to clear all notifications?")) return;
+
+            const notifRef = ref(db, `notifications/${currentUser.uid}`);
+            await remove(notifRef);
+            alert("All notifications cleared.");
+        });
+
+
     </script>
 
 
