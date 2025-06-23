@@ -79,4 +79,23 @@ body {
       text-decoration: underline;
     }
 
+@media (max-width: 480px) {
+  .login-container {
+    width: 90%;
+    padding: 1.5rem;
+  }
+
+  input {
+    padding: 0.8rem;
+    font-size: 1rem;
+  }
+
+  button {
+    padding: 0.8rem;
+    font-size: 1rem;
+  }
+}
+
+    
+
     
