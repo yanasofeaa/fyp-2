@@ -9,7 +9,7 @@
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles/admin_home.css">
-    
+
 </head>
 
 <body>
@@ -40,6 +40,20 @@
             <div class="analyticsBar">
                 <button onclick="window.location.href='admin_analytics.html'"><img src="images/analytics.png" width="20"
                         height="20" alt="Analytics" /> Analytics</button>
+            </div>
+
+            <div class="notificationsbar">
+                <button id="notificationsBtn">
+                    <img src="images/settings.png" width="20" height="20" alt="Notifications" />
+                    Notifications
+                </button>
+            </div>
+
+            <div class="messagesbar">
+                <button id="messagesBtn">
+                    <img src="images/messages.png" width="20" height="20" alt="Messages" />
+                    Messages
+                </button>
             </div>
 
             <div class="postbar">
@@ -129,6 +143,48 @@
             <h4>password: </h4>
             <textarea id="modalPassword" placeholder="Edit Password..."></textarea>
             <button id="modalPasswordBtn" class="password_edit" disabled>Edit</button>
+
+        </div>
+    </div>
+
+    <!--for popup notifications-->
+    <div id="notificationsModal">
+        <div class="notifications-content">
+            <button class="close-btn"><img src="images/x.png" width="20" height="20" alt="Close Icon" /></button>
+            <h3>
+                <center>Notifications</center>
+            </h3>
+            <ul id="notificationsList"></ul>
+
+            <button id="clearNotificationsBtn"> Clear All Notifications</button>
+
+        </div>
+    </div>
+
+    <!--for popup dm messaging-->
+    <div id="messagesModal">
+        <div class="messages-content">
+            <button class="close-btn"><img src="images/x.png" width="20" height="20" alt="Close Icon" /></button>
+            <h3>
+                <center>Direct Message</center>
+            </h3>
+
+            <input type="text" id="dmTargetUsername" placeholder="Enter target username..."
+                style="width:100%; padding:8px; margin-bottom:1rem;">
+            <div id="chatWindow"
+                style="border:1px solid #ccc; height:250px; overflow-y:auto; padding:10px; margin-bottom:1rem;"></div>
+
+            <input type="text" id="messageInput" placeholder="Type message..."
+                style="width:100%; padding:8px; margin-bottom:0.5rem;">
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 1rem;">
+                <button id="sendMessageBtn">
+                    Send Message
+                </button>
+
+                <button id="deleteChatBtn">
+                    Delete Chat
+                </button>
+            </div>
 
         </div>
     </div>
@@ -330,6 +386,7 @@
                             postSnap.likeCount = (postSnap.likeCount || 0) + 1;
                             postSnap.likes = postSnap.likes || {};
                             postSnap.likes[currentUser.uid] = true;
+                            sendNotification(post.uid, "liked", currentUsername, post.id);
                         }
                         return postSnap;
                     });
@@ -349,6 +406,7 @@
                             postSnap.repostCount = (postSnap.repostCount || 0) + 1;
                             postSnap.reposts = postSnap.reposts || {};
                             postSnap.reposts[currentUser.uid] = true;
+                            sendNotification(post.uid, "reposted", currentUsername, post.id);
                         }
                         return postSnap;
                     });
@@ -369,10 +427,12 @@
                 if (commentText === "") return;
                 await push(ref(db, `posts/${post.id}/comments`), {
                     uid: currentUser.uid,
+                    username: currentUsername,
                     text: commentText,
                     createdAt: Date.now()
                 });
                 commentInput.value = "";
+                sendNotification(post.uid, "commented", currentUsername, post.id, commentText);
             });
 
             const commentsRef = ref(db, `posts/${post.id}/comments`);
@@ -381,7 +441,7 @@
                 snap.forEach(c => {
                     const data = c.val();
                     const cDiv = document.createElement("div");
-                    cDiv.innerHTML = `💬 ${escapeHtml(data.text)} <small>${new Date(data.createdAt).toLocaleString()}</small>`;
+                    cDiv.innerHTML = `💬 <strong>@${escapeHtml(data.username)}</strong>: ${escapeHtml(data.text)} <small>${new Date(data.createdAt).toLocaleString()}</small>`;
                     commentList.appendChild(cDiv);
                 });
             });
@@ -511,6 +571,223 @@
                 const keyword = item.textContent.replace("#", "").trim();
                 performSearch(keyword);
             });
+        });
+
+        // --- Notification Modal Elements
+        const notificationsBtn = document.getElementById("notificationsBtn");
+        const notificationsModal = document.getElementById("notificationsModal");
+        const notificationsList = document.getElementById("notificationsList");
+
+        // Open notifications modal
+        notificationsBtn.addEventListener("click", () => {
+            notificationsModal.classList.add("active");
+        });
+
+        // Close modal
+        document.querySelector("#notificationsModal .close-btn").addEventListener("click", () => {
+            notificationsModal.classList.remove("active");
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+        window.location.href = "index.html";
+        return;
+    }
+    currentUser = user;
+    const userSnap = await get(ref(db, `users/${user.uid}`));
+    if (userSnap.exists()) {
+        const profile = userSnap.val();
+        currentUsername = profile.username;
+
+        // ✅ Notifications — CORRECT PLACE:
+        const notifRef = ref(db, `notifications/${currentUser.uid}`);
+        onValue(notifRef, snapshot => {
+            notificationsList.innerHTML = "";
+            const notifs = snapshot.val() || {};
+            Object.entries(notifs).reverse().forEach(([key, notif]) => {
+                const item = document.createElement("li");
+                const date = new Date(notif.timestamp).toLocaleString();
+                let text = `${notif.fromUser} ${notif.type} your post`;
+                if (notif.type === "commented") text += `: "${notif.text}"`;
+                item.innerHTML = `${text}<br><small>${date}</small>`;
+                notificationsList.appendChild(item);
+            });
+        });
+
+    } else {
+        window.location.href = "profile-setup.html";
+    }
+});
+
+
+        // --- Function to send notification
+        function sendNotification(targetUserUid, type, fromUsername, postId, text = "") {
+            const notifRef = ref(db, `notifications/${targetUserUid}`);
+            push(notifRef, {
+                type,
+                fromUser: fromUsername,
+                postId,
+                text,
+                timestamp: Date.now(),
+                read: false
+            });
+        }
+
+        const clearNotificationsBtn = document.getElementById("clearNotificationsBtn");
+
+        clearNotificationsBtn.addEventListener("click", async () => {
+            if (!currentUser) return;
+            if (!confirm("Are you sure you want to clear all notifications?")) return;
+
+            const notifRef = ref(db, `notifications/${currentUser.uid}`);
+            await remove(notifRef);
+            alert("All notifications cleared.");
+        });
+
+        const messagesBtn = document.getElementById("messagesBtn");
+        const messagesModal = document.getElementById("messagesModal");
+        const chatWindow = document.getElementById("chatWindow");
+        const sendMessageBtn = document.getElementById("sendMessageBtn");
+        const messageInput = document.getElementById("messageInput");
+        const dmTargetUsername = document.getElementById("dmTargetUsername");  // <-- change here
+
+        messagesBtn.addEventListener("click", () => {
+            messagesModal.classList.add("active");
+            chatWindow.innerHTML = "";
+        });
+
+        document.querySelector("#messagesModal .close-btn").addEventListener("click", () => {
+            messagesModal.classList.remove("active");
+            chatWindow.innerHTML = "";
+        });
+
+        async function getUidByUsername(username) {
+            const usersRef = ref(db, 'users');
+            const snapshot = await get(usersRef);
+            let targetUid = null;
+
+            snapshot.forEach(childSnap => {
+                const userData = childSnap.val();
+                if (userData.username.toLowerCase() === username.toLowerCase()) {
+                    targetUid = childSnap.key;
+                }
+            });
+
+            return targetUid;
+        }
+
+        sendMessageBtn.addEventListener("click", async () => {
+            const messageText = messageInput.value.trim();
+            const targetUsername = dmTargetUsername.value.trim();
+
+            if (!messageText || !targetUsername || !currentUser) return;
+
+            const targetUid = await getUidByUsername(targetUsername);
+
+            if (!targetUid) {
+                alert("User not found!");
+                return;
+            }
+
+            const conversationId = [currentUser.uid, targetUid].sort().join("_");
+            const messageRef = ref(db, `messages/${conversationId}`);
+
+            await push(messageRef, {
+                from: currentUsername,
+                fromUid: currentUser.uid,
+                toUid: targetUid,
+                text: messageText,
+                timestamp: Date.now()
+            });
+
+            messageInput.value = "";
+        });
+
+        // Load chat on username change
+        dmTargetUsername.addEventListener("change", async () => {
+            const targetUsername = dmTargetUsername.value.trim();
+            if (!targetUsername || !currentUser) return;
+
+            const targetUid = await getUidByUsername(targetUsername);
+
+            if (!targetUid) {
+                alert("User not found!");
+                return;
+            }
+
+            const conversationId = [currentUser.uid, targetUid].sort().join("_");
+            const chatRef = ref(db, `messages/${conversationId}`);
+
+            onValue(chatRef, (snapshot) => {
+                chatWindow.innerHTML = "";
+                snapshot.forEach(msgSnap => {
+                    const msg = msgSnap.val();
+                    const msgDiv = document.createElement("div");
+                    msgDiv.innerHTML = `<strong>@${msg.from}</strong>: ${escapeHtml(msg.text)} <small>${new Date(msg.timestamp).toLocaleString()}</small>`;
+                    msgDiv.style.marginBottom = "6px";
+                    chatWindow.appendChild(msgDiv);
+                });
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            });
+        });
+
+        const deleteChatBtn = document.getElementById("deleteChatBtn");
+
+        // Global variable to store current conversationId
+        let currentConversationId = "";
+
+        // When loading chat — set currentConversationId
+        async function loadChat(targetUsername) {
+            const targetUid = await getUidByUsername(targetUsername);
+
+            if (!targetUid) {
+                alert("User not found!");
+                return;
+            }
+
+            const conversationId = [currentUser.uid, targetUid].sort().join("_");
+            currentConversationId = conversationId;  // Save current chat!
+
+            const chatRef = ref(db, `messages/${conversationId}`);
+
+            onValue(chatRef, (snapshot) => {
+                chatWindow.innerHTML = "";
+                snapshot.forEach(msgSnap => {
+                    const msg = msgSnap.val();
+                    const msgDiv = document.createElement("div");
+                    msgDiv.innerHTML = `<strong>@${msg.from}</strong>: ${escapeHtml(msg.text)} <small>${new Date(msg.timestamp).toLocaleString()}</small>`;
+                    msgDiv.style.marginBottom = "6px";
+                    chatWindow.appendChild(msgDiv);
+                });
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            });
+        }
+
+        // On change of target username → load chat
+        dmTargetUsername.addEventListener("change", () => {
+            const targetUsername = dmTargetUsername.value.trim();
+            if (!targetUsername || !currentUser) return;
+
+            loadChat(targetUsername);
+        });
+
+        // Delete Chat button:
+        deleteChatBtn.addEventListener("click", async () => {
+            if (!currentConversationId) {
+                alert("No chat selected!");
+                return;
+            }
+
+            if (!confirm("Are you sure you want to delete this chat?")) return;
+
+            // Delete chat messages
+            await remove(ref(db, `messages/${currentConversationId}`));
+
+            // Delete from userChats
+            await remove(ref(db, `userChats/${currentUser.uid}/${currentConversationId}`));
+
+            alert("Chat deleted.");
+            chatWindow.innerHTML = "";
         });
     </script>
 

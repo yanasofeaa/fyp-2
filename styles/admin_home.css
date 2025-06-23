@@ -455,3 +455,134 @@ header {
   font-size: 1.5rem;
   cursor: pointer;
 }
+
+/* Notifications Modal */
+#notificationsModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  justify-content: center;
+  align-items: center;
+}
+
+#notificationsModal.active {
+  display: flex;
+}
+
+.notifications-content {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  width: 320px;
+  max-height: 500px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.notifications-content h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.notifications-content .close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+#notificationsList li {
+  border-bottom: 1px solid #ddd;
+  padding: 10px 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+#notificationsList li small {
+  display: block;
+  color: #888;
+  margin-top: 4px;
+}
+
+#clearNotificationsBtn {
+  display: block;
+  margin: 2rem auto 1.5rem auto;
+  background-color: #0052cc;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+#messagesModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  justify-content: center;
+  align-items: center;
+}
+
+#messagesModal.active {
+  display: flex;
+}
+
+.messages-content {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  width: 400px;
+  max-height: 600px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.messages-content .close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+#sendMessageBtn {
+  flex: 1;
+  background-color: #0052cc;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+
+}
+
+#deleteChatBtn {
+  flex: 1;
+  background-color: #d9534f;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+}
