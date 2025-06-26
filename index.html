@@ -28,13 +28,21 @@
     <div class="link">
       Don't have an account? <a href="register.html">Register here</a>
     </div>
+    <div class="link">
+      <a href="#" id="forgotPasswordLink">Forgot Password?</a>
+    </div>
   </div>
+
+
+
 
 
   <script type="module">
     import { auth, db } from './firebaseConfig.js';
     import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
     import { ref, get } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+    import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+
 
     const togglePassword = document.getElementById("togglePassword");
     const passwordInput = document.getElementById("password");
@@ -79,6 +87,30 @@
         }
       }
     });
+
+    const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+
+    forgotPasswordLink.addEventListener("click", async () => {
+      const email = document.getElementById("email").value.trim();
+
+      if (!email) {
+        errorDisplay.textContent = "Please enter your email to reset your password.";
+        return;
+      }
+
+      try {
+        await sendPasswordResetEmail(auth, email);
+        alert("Password reset email sent! Please check your inbox and spam/junk folder.");
+
+      } catch (error) {
+        if (error.code === "auth/user-not-found") {
+          errorDisplay.textContent = "No account found with this email.";
+        } else {
+          errorDisplay.textContent = "Error: " + error.message;
+        }
+      }
+    });
+
   </script>
 
 </body>
