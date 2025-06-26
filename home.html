@@ -15,6 +15,22 @@
 <body>
 
     <header>MMUsite</header>
+    <!-- Burger Icon -->
+    <div id="burger" class="burger-menu">&#9776;</div>
+
+    <!-- Sliding Sidebar -->
+    <div id="mobileSidebar" class="mobile-sidebar">
+        <button onclick="closeSidebar()">✕</button>
+        <a href="#">Home</a>
+        <a href="#">Profile</a>
+        <a href="#">Notifications</a>
+        <a href="#">Messages</a>
+        <a href="#">Settings</a>
+    </div>
+
+    <!-- Overlay -->
+    <div id="overlay" class="overlay" onclick="closeSidebar()"></div>
+
 
     <div class="container">
 
@@ -42,10 +58,12 @@
 
             <div class="messagesbar">
                 <button id="messagesBtn">
-                    <img src="images/messaging.png" width="20" height="20" alt="Messages" />
+                    <img src="images/messages.png" width="20" height="20" alt="Messages" />
                     Messages
                 </button>
             </div>
+
+
 
             <div class="postbar">
                 <button onclick="toggleModal(true)"><img src="images/post.png" width="20" height="20" alt="Post Icon" />
@@ -795,6 +813,24 @@
     <!-- Chatbase Chatbot -->
     <script src="https://www.chatbase.co/embed.min.js" chatbotId="PphMzwfUNpnHLm_knq8vg" defer>
     </script>
+
+    <script>
+        const burger = document.getElementById('burger');
+        const sidebar = document.getElementById('mobileSidebar');
+        const overlay = document.getElementById('overlay');
+
+        burger.onclick = () => {
+            sidebar.classList.add('open');
+            overlay.classList.add('show');
+        };
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('show');
+        }
+    </script>
+
+
 
 
 </body>

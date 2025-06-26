@@ -143,7 +143,7 @@ header {
 
 .tweet {
   background: #ffffff;
-  padding: 16px 20px;
+  padding: 6px 6px;
   border-radius: 12px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   font-size: 1rem;
@@ -585,4 +585,194 @@ header {
   font-weight: bold;
   font-size: 1rem;
   cursor: pointer;
+}
+
+/* 📱 iPhone-Friendly Styling: up to 428px width */
+@media (max-width: 428px) {
+  .container {
+    flex-direction: column;
+  }
+
+  /* Sidebar becomes compact horizontal nav */
+  .sidebar {
+    width: 100%;
+    padding: 0.5rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    align-items: center;
+    background-color: #1c2b4a;
+    overflow-x: auto;
+  }
+
+  .sidebar p {
+    display: none;
+  }
+
+  .sidebar button {
+    font-size: 0.8rem;
+    min-width: 80px;
+    padding: 0.5rem;
+    gap: 4px;
+    justify-content: center;
+  }
+
+  .sidebar button img {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Feed full width */
+  .feed {
+    width: 100%;
+    max-width: 100%;
+    padding: 0.8rem;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .tweet-box textarea {
+    min-height: 70px;
+    font-size: 0.9rem;
+  }
+
+  .tweet {
+    font-size: 0.9rem;
+  }
+
+  .tweet-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .tweet-buttons button {
+    font-size: 0.85rem;
+    padding: 6px 10px;
+  }
+
+  /* Rightbar becomes compact below feed */
+  .rightbar {
+    width: 100%;
+    padding: 1rem;
+    background: #f9fafb;
+    border-top: 1px solid #ccc;
+  }
+
+  .search-container input {
+    width: 100%;
+    padding: 10px;
+    font-size: 0.9rem;
+  }
+
+  .rightbar p {
+    font-size: 1rem;
+    margin-top: 1rem;
+  }
+
+  .rightbar ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .rightbar ul li {
+    background: #e5e9f0;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  /* Modal dialogs full width */
+  .messages-content,
+  .settings-content,
+  .notifications-content,
+  #tweetModal .modal-content {
+    width: 90%;
+    padding: 1rem;
+  }
+
+  header {
+    font-size: 1.1rem;
+    padding: 0.8rem;
+    text-align: center;
+  }
+}
+
+/* 🔘 Floating Burger Icon */
+.burger-menu {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  font-size: 2rem;
+  background: #1c2b4a;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 8px;
+  z-index: 1001;
+  cursor: pointer;
+}
+
+/* 📜 Slide-in Sidebar */
+.mobile-sidebar {
+  display: none;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: -250px;
+  width: 250px;
+  height: 100%;
+  background-color: #1c2b4a;
+  color: white;
+  padding: 1rem;
+  z-index: 1000;
+  transition: left 0.3s ease;
+}
+
+.mobile-sidebar button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  align-self: flex-end;
+  cursor: pointer;
+}
+
+.mobile-sidebar a {
+  color: white;
+  text-decoration: none;
+  margin: 1rem 0;
+  font-size: 1.1rem;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 999;
+}
+
+/* 🔄 Show on small screens */
+@media (max-width: 768px) {
+  .burger-menu {
+    display: block;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .mobile-sidebar.open {
+    left: 0;
+  }
+
+  .overlay.show {
+    display: block;
+  }
 }
