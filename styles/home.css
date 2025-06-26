@@ -141,16 +141,39 @@ header {
 
 
 
+/* 🧾 Compact Tweet Display Only */
 .tweet {
-  background: #ffffff;
-  padding: 16px 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-  font-size: 1rem;
-  color: #172b4d;
-  word-wrap: break-word;
-  white-space: pre-wrap;
+  padding: 0.7rem 1rem;         /* Less internal padding */
+  margin-bottom: 0.6rem;        /* Tight vertical spacing */
+  font-size: 0.95rem;           /* Slightly smaller text */
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
+
+/* 👤 Optional: Tweet header/info */
+.tweet .tweet-header {
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.tweet .tweet-meta {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+/* 🧰 Buttons inside tweets */
+.tweet-buttons {
+  gap: 6px;                      /* Less space between buttons */
+  margin-top: 0.5rem;
+}
+
+.tweet-buttons button {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  border-radius: 6px;
+}
+
 
 .timestamp {
   font-size: 0.8rem;
@@ -455,6 +478,43 @@ header {
   font-size: 1.5rem;
   cursor: pointer;
 }
+
+/* 🔐 Password Fields in Settings Modal */
+#settingsModal input[type="password"] {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 1rem;
+  margin-bottom: 12px;
+  border: 1.5px solid #ccc;
+  border-radius: 10px;
+  font-family: 'Inter', sans-serif;
+  background-color: #fdfdfd;
+  transition: border-color 0.2s;
+}
+
+#settingsModal input[type="password"]:focus {
+  border-color: #5c6bc0;
+  outline: none;
+}
+
+#modalPasswordBtn {
+  background-color: #1c2b4a;
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 8px;
+  transition: background-color 0.2s;
+}
+
+#modalPasswordBtn:disabled {
+  background-color: #9fa8da;
+  cursor: not-allowed;
+}
+
 
 /* Notifications Modal */
 #notificationsModal {

@@ -47,6 +47,8 @@
                 </button>
             </div>
 
+
+
             <div class="postbar">
                 <button onclick="toggleModal(true)"><img src="images/post.png" width="20" height="20" alt="Post Icon" />
                     Post</button>
@@ -132,9 +134,14 @@
             </h3>
             <h4>username: </h4><textarea id="modalusername" placeholder="Edit Username..."></textarea>
             <button id="modalUsernameBtn" class="username_edit" disabled>Edit</button>
-            <h4>password: </h4>
-            <textarea id="modalPassword" placeholder="Edit Password..."></textarea>
-            <button id="modalPasswordBtn" class="password_edit" disabled>Edit</button>
+            <h4>Current Password:</h4>
+            <input type="password" id="currentPassword" placeholder="Enter current password..." />
+
+            <h4>New Password:</h4>
+            <input type="password" id="newPassword" placeholder="Enter new password..." />
+
+            <button id="modalPasswordBtn" class="password_edit" disabled>Update Password</button>
+
 
         </div>
     </div>
@@ -188,16 +195,24 @@
     <script type="module">
         import { auth, db } from './firebaseConfig.js';
         import { onAuthStateChanged, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
-        import { ref, get, onValue, query, orderByChild, limitToLast, push, runTransaction, remove, update } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+        import { ref, get, onValue, query, orderByChild, limitToLast, push, runTransaction, remove, update, set } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+        import { EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
+
 
         let currentUser = null;
         let currentUsername = "";
 
+
         // Declare settings inputs early to avoid ReferenceError
         const usernameInput = document.getElementById("modalusername");
         const usernameBtn = document.getElementById("modalUsernameBtn");
-        const passwordInput = document.getElementById("modalPassword");
+        const currentPasswordInput = document.getElementById("currentPassword");
+        const newPasswordInput = document.getElementById("newPassword");
         const passwordBtn = document.getElementById("modalPasswordBtn");
+
+
+
+
 
         // Toggle for settings modal
         function toggleSettings(show) {
@@ -503,23 +518,36 @@
 
 
         //  Password update
-        passwordInput.addEventListener("input", () => {
-            passwordBtn.disabled = passwordInput.value.trim().length < 6;
-        });
+
+
+        function checkPasswordInputs() {
+            const currentVal = currentPasswordInput.value.trim();
+            const newVal = newPasswordInput.value.trim();
+            passwordBtn.disabled = !(currentVal && newVal.length >= 6);
+        }
+
+        currentPasswordInput.addEventListener("input", checkPasswordInputs);
+        newPasswordInput.addEventListener("input", checkPasswordInputs);
+
         passwordBtn.addEventListener("click", async () => {
-            const newPassword = passwordInput.value.trim();
-            if (!newPassword || !auth.currentUser) return;
+            const currentVal = currentPasswordInput.value.trim();
+            const newVal = newPasswordInput.value.trim();
+
             try {
-                await updatePassword(auth.currentUser, newPassword);
+                const credential = EmailAuthProvider.credential(currentUser.email, currentVal);
+                await reauthenticateWithCredential(currentUser, credential);
+                await updatePassword(currentUser, newVal);
                 alert("Password updated successfully.");
-                passwordInput.value = "";
+                currentPasswordInput.value = "";
+                newPasswordInput.value = "";
                 passwordBtn.disabled = true;
                 toggleSettings(false);
-            } catch (error) {
-                console.error("Error updating password:", error);
-                alert("Failed to update password. Please re-login.");
+            } catch (err) {
+                console.error("Password update error:", err);
+                alert("Failed to update password. Please re-authenticate.");
             }
         });
+
 
         // Close buttons for modals
         document.querySelector("#tweetModal .close-btn").addEventListener("click", () => toggleModal(false));
@@ -604,11 +632,23 @@
                     Object.entries(notifs).reverse().forEach(([key, notif]) => {
                         const item = document.createElement("li");
                         const date = new Date(notif.timestamp).toLocaleString();
-                        let text = `${notif.fromUser} ${notif.type} your post`;
-                        if (notif.type === "commented") text += `: "${notif.text}"`;
+
+                        let text = "";
+
+                        if (notif.type === "message") {
+                            text = `@${notif.username || "someone"} sent you a direct message.`;
+                        } else {
+                            const user = notif.fromUser || notif.username || "someone";
+                            text = `@${user} ${notif.type} your post`;
+                            if (notif.type === "commented" && notif.text) {
+                                text += `: "${notif.text}"`;
+                            }
+                        }
+
                         item.innerHTML = `${text}<br><small>${date}</small>`;
                         notificationsList.appendChild(item);
                     });
+
                 });
             } else {
                 window.location.href = "profile-setup.html";
@@ -687,6 +727,7 @@
             const conversationId = [currentUser.uid, targetUid].sort().join("_");
             const messageRef = ref(db, `messages/${conversationId}`);
 
+            // ✅ Push the message to Firebase
             await push(messageRef, {
                 from: currentUsername,
                 fromUid: currentUser.uid,
@@ -695,8 +736,22 @@
                 timestamp: Date.now()
             });
 
+            // ✅ Then create a notification entry for the receiver
+            const notificationRef = ref(db, `notifications/${targetUid}`);
+            const newNotifRef = push(notificationRef);
+            await set(newNotifRef, {
+                type: "message",
+                from: currentUser.uid,
+                username: currentUsername,
+                text: `sent you a direct message.`,
+                timestamp: Date.now()
+            });
+
+            // ✅ Clear message input
             messageInput.value = "";
         });
+
+
 
         // Load chat on username change
         dmTargetUsername.addEventListener("change", async () => {
