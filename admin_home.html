@@ -503,6 +503,20 @@
             // Proceed with update if unique
             const userRef = ref(db, `users/${currentUser.uid}`);
             await update(userRef, { username: newUsername });
+            await updateOldPostsUsername(currentUser.uid, newUsername);
+
+            // Clear and reload posts manually
+            onValue(ref(db, "posts"), snapshot => {
+                feedDiv.innerHTML = "";
+                const posts = [];
+                snapshot.forEach(childSnap => {
+                    posts.push({ id: childSnap.key, ...childSnap.val() });
+                });
+                posts.sort((a, b) => b.createdAt - a.createdAt);
+                posts.forEach(post => renderPost(post));
+            });
+
+
             currentUsername = newUsername;
             document.getElementById("welcomeName").innerHTML = `<strong>Welcome, ${currentUsername}!</strong>`;
             document.getElementById("usernameHandle").textContent = `@${currentUsername}`;
@@ -541,6 +555,35 @@
                 alert("Failed to update password. Please re-authenticate.");
             }
         });
+
+        async function updateOldPostsUsername(uid, newUsername) {
+            const postsRef = ref(db, 'posts');
+            const snapshot = await get(postsRef);
+
+            if (snapshot.exists()) {
+                const updates = {};
+                snapshot.forEach(childSnap => {
+                    const post = childSnap.val();
+                    if (post.uid === uid) {
+                        updates[`posts/${childSnap.key}/username`] = newUsername;
+                    }
+
+                    // Also update comments inside each post
+                    const comments = post.comments;
+                    if (comments) {
+                        Object.entries(comments).forEach(([commentId, comment]) => {
+                            if (comment.uid === uid) {
+                                updates[`posts/${childSnap.key}/comments/${commentId}/username`] = newUsername;
+                            }
+                        });
+                    }
+                });
+
+                await update(ref(db), updates);
+                console.log("Old posts and comments updated to new username.");
+            }
+        }
+
 
 
 
@@ -619,13 +662,18 @@
 
                 // ✅ Notifications — CORRECT PLACE:
                 const notifRef = ref(db, `notifications/${currentUser.uid}`);
-                
+
                 onValue(notifRef, snapshot => {
                     notificationsList.innerHTML = "";
                     const notifs = snapshot.val() || {};
                     Object.entries(notifs).reverse().forEach(([key, notif]) => {
                         const item = document.createElement("li");
-                        const sender = notif.username || notif.fromUser || "Someone";
+                        function getUsername(uid, fallback = "Someone") {
+                            return get(ref(db, `users/${uid}`))
+                                .then(snapshot => snapshot.exists() ? snapshot.val().username : fallback)
+                                .catch(() => fallback);
+                        }
+
                         const icon = notif.type === "message" ? "📩" : "🔔";
                         const text = notif.type === "commented"
                             ? `${icon} <strong>@${sender}</strong> commented: "${notif.text}"`
