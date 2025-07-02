@@ -662,18 +662,12 @@
 
                 // ✅ Notifications — CORRECT PLACE:
                 const notifRef = ref(db, `notifications/${currentUser.uid}`);
-
                 onValue(notifRef, snapshot => {
                     notificationsList.innerHTML = "";
                     const notifs = snapshot.val() || {};
                     Object.entries(notifs).reverse().forEach(([key, notif]) => {
                         const item = document.createElement("li");
-                        function getUsername(uid, fallback = "Someone") {
-                            return get(ref(db, `users/${uid}`))
-                                .then(snapshot => snapshot.exists() ? snapshot.val().username : fallback)
-                                .catch(() => fallback);
-                        }
-
+                        const sender = notif.username || notif.fromUser || "Someone";
                         const icon = notif.type === "message" ? "📩" : "🔔";
                         const text = notif.type === "commented"
                             ? `${icon} <strong>@${sender}</strong> commented: "${notif.text}"`
@@ -684,7 +678,6 @@
                         notificationsList.appendChild(item);
                     });
                 });
-
             } else {
                 window.location.href = "profile-setup.html";
             }
