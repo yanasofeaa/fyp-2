@@ -619,14 +619,19 @@
 
                 // ✅ Notifications — CORRECT PLACE:
                 const notifRef = ref(db, `notifications/${currentUser.uid}`);
+                
                 onValue(notifRef, snapshot => {
                     notificationsList.innerHTML = "";
                     const notifs = snapshot.val() || {};
                     Object.entries(notifs).reverse().forEach(([key, notif]) => {
                         const item = document.createElement("li");
+                        const sender = notif.username || notif.fromUser || "Someone";
+                        const icon = notif.type === "message" ? "📩" : "🔔";
+                        const text = notif.type === "commented"
+                            ? `${icon} <strong>@${sender}</strong> commented: "${notif.text}"`
+                            : `${icon} <strong>@${sender}</strong> ${notif.text || `${notif.type} your post`}`;
                         const date = new Date(notif.timestamp).toLocaleString();
-                        let text = `${notif.fromUser} ${notif.type} your post`;
-                        if (notif.type === "commented") text += `: "${notif.text}"`;
+
                         item.innerHTML = `${text}<br><small>${date}</small>`;
                         notificationsList.appendChild(item);
                     });
