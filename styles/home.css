@@ -197,6 +197,67 @@ header {
   align-items: center;
 }
 
+.comments {
+  border-top: 1px solid #ddd;
+  padding-top: 10px;
+  margin-top: 10px;
+  background: #f9f9f9;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.commentList div {
+  padding: 6px 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  border-bottom: 1px dashed #ccc;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.commentList div:last-child {
+  border-bottom: none;
+}
+
+.comment-input-area {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.commentInput {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1.5px solid #ccc;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.2s ease;
+}
+
+.commentInput:focus {
+  border-color: #0052cc;
+  outline: none;
+  box-shadow: 0 0 5px #0052cc44;
+}
+
+.submitCommentBtn {
+  background-color: #0052cc;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background-color 0.2s ease;
+}
+
+.submitCommentBtn:hover {
+  background-color: #003d99;
+}
+
+
 /* Dropdown styling */
 .dropdown_edit {
   position: relative;
