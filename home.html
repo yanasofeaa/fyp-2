@@ -479,7 +479,7 @@
         updateMainCount();
         updateModalCount();
 
-        // Username update
+
         // Username update
         usernameInput.addEventListener("input", () => {
             usernameBtn.disabled = usernameInput.value.trim() === "";
@@ -554,7 +554,21 @@
             usernameBtn.disabled = true;
             toggleSettings(false);
             alert("Username updated successfully.");
+
+            // ✅ Update username in all comments
+            postsSnapshot.forEach(childSnap => {
+                const postId = childSnap.key;
+                const comments = childSnap.val().comments || {};
+                Object.entries(comments).forEach(([commentId, comment]) => {
+                    if (comment.uid === currentUser.uid) {
+                        update(ref(db, `posts/${postId}/comments/${commentId}`), { username: newUsername });
+                    }
+                });
+            });
+
         });
+
+
 
 
 
