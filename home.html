@@ -480,6 +480,7 @@
         updateModalCount();
 
         // Username update
+        // Username update
         usernameInput.addEventListener("input", () => {
             usernameBtn.disabled = usernameInput.value.trim() === "";
         });
@@ -504,9 +505,48 @@
                 return;
             }
 
-            // Proceed with update if unique
+            // Update username in users table
             const userRef = ref(db, `users/${currentUser.uid}`);
             await update(userRef, { username: newUsername });
+
+            // ✅ Update username in all posts
+            const postsRef = ref(db, 'posts');
+            const postsSnapshot = await get(postsRef);
+            postsSnapshot.forEach(childSnap => {
+                const post = childSnap.val();
+                if (post.uid === currentUser.uid) {
+                    update(ref(db, `posts/${childSnap.key}`), { username: newUsername });
+                }
+            });
+
+            // ✅ Update username in all messages
+            const messagesRef = ref(db, 'messages');
+            const messagesSnapshot = await get(messagesRef);
+            messagesSnapshot.forEach(convoSnap => {
+                convoSnap.forEach(msgSnap => {
+                    const msg = msgSnap.val();
+                    if (msg.fromUid === currentUser.uid) {
+                        update(ref(db, `messages/${convoSnap.key}/${msgSnap.key}`), { from: newUsername });
+                    }
+                });
+            });
+
+            // ✅ Update username in notifications
+            const notificationsRef = ref(db, 'notifications');
+            const notifsSnapshot = await get(notificationsRef);
+            notifsSnapshot.forEach(userNotifSnap => {
+                userNotifSnap.forEach(notifSnap => {
+                    const notif = notifSnap.val();
+                    if (notif.fromUser === currentUsername || notif.username === currentUsername) {
+                        update(ref(db, `notifications/${userNotifSnap.key}/${notifSnap.key}`), {
+                            fromUser: newUsername,
+                            username: newUsername
+                        });
+                    }
+                });
+            });
+
+            // Update local variables and UI
             currentUsername = newUsername;
             document.getElementById("welcomeName").innerHTML = `<strong>Welcome, ${currentUsername}!</strong>`;
             document.getElementById("usernameHandle").textContent = `@${currentUsername}`;
@@ -515,6 +555,8 @@
             toggleSettings(false);
             alert("Username updated successfully.");
         });
+
+
 
 
         //  Password update
